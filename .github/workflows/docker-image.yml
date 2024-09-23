@@ -21,27 +21,14 @@ jobs:
     - name: Install dependencies
       run: npm install  # Install project dependencies
 
-    - name: Increment version
-      id: increment_version
-      run: |
-        # Increment version
-        npm version patch --no-git-tag-version  # Change this to major or minor as needed
-        NEW_VERSION=$(node -p "require('./package.json').version")
-        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV  # Store the new version for the next steps
-
-    - name: Commit new version
-      run: |
-        git config --local user.name "GitHub Actions"
-        git config --local user.email "actions@github.com"
-        git add package.json
-        git commit -m "Increment version to $NEW_VERSION" || echo "No changes to commit"
-
-    - name: Push changes
-      run: |
-        git push origin main  # Push changes back to the main branch
-
     - name: Run tests
       run: npm test -- --watch=false --browsers=ChromeHeadless  # Run tests
+
+    - name: Increment version
+      run: |
+        npm run version:patch  # Increment the patch version
+        NEW_VERSION=$(node -p "require('./package.json').version")
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV  # Store the new version for the next steps
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
@@ -53,7 +40,7 @@ jobs:
       run: |
         IMAGE_NAME="${{ secrets.DOCKER_USERNAME }}/project2"
         IMAGE_TAG="${{ env.NEW_VERSION }}"  # Use the incremented version
-        docker build -t $IMAGE_NAME:$IMAGE_TAG .
+        docker build --build-arg VERSION=${{ env.NEW_VERSION }} -t $IMAGE_NAME:$IMAGE_TAG .
 
     - name: Push Docker image
       run: |
